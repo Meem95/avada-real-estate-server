@@ -99,7 +99,13 @@ async function run() {
       const reviews = await cursor.toArray();
       res.send(reviews);
     });
-    
+    //post reviews
+    app.post("/reviews", async (req, res) => {
+      const newReviews = req.body;
+      console.log(newReviews);
+      const result = await reviewCollection.insertOne(newReviews);
+      res.send(result);
+    });
 
     ///Logout
     app.post("/logout", async (req, res) => {
