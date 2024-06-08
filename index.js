@@ -62,6 +62,7 @@ async function run() {
 
     const userCollection = client.db("real-estate").collection("user");
     const propertyCollection = client.db("real-estate").collection("property");
+    const reviewCollection = client.db("real-estate").collection("reviews");
 
     // user related apis
     app.post("/jwt", async (req, res) => {
@@ -83,12 +84,22 @@ async function run() {
       const property = await cursor.toArray();
       res.send(property);
     });
+    //post property
     app.post("/property", async (req, res) => {
       const newProperty = req.body;
       console.log(newProperty);
       const result = await propertyCollection.insertOne(newProperty);
       res.send(result);
     });
+
+    //all review routes
+    //get review
+    app.get("/reviews", async (req, res) => {
+      const cursor = reviewCollection.find();
+      const reviews = await cursor.toArray();
+      res.send(reviews);
+    });
+    
 
     ///Logout
     app.post("/logout", async (req, res) => {
@@ -107,6 +118,11 @@ async function run() {
 
     app.post("/user", async (req, res) => {
       const user = req.body;
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertedId: null })
+      }
       console.log(user);
       const result = await userCollection.insertOne(user);
       res.send(result);
