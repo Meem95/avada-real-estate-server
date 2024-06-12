@@ -219,7 +219,18 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
-          role: "verified",
+          status: "verified",
+        },
+      };
+      const result = await propertyCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+    app.patch("/property/reject/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: "rejected",
         },
       };
       const result = await propertyCollection.updateOne(filter, updatedDoc);
