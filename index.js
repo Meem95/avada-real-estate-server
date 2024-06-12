@@ -225,6 +225,9 @@ async function run() {
       const result = await propertyCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
+
+
+
     app.patch("/property/reject/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -236,6 +239,21 @@ async function run() {
       const result = await propertyCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
+
+    app.get("/property/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await propertyCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.delete('/property/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await propertyCollection.deleteOne(query);
+      res.send(result);
+    })
+    
 
     //all review routes
     //get review
