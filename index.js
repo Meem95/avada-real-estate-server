@@ -50,6 +50,7 @@ async function run() {
     const userCollection = client.db("real-estate").collection("user");
     const propertyCollection = client.db("real-estate").collection("property");
     const reviewCollection = client.db("real-estate").collection("reviews");
+    const wishlistCollection = client.db("real-estate").collection("wishlists");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -184,11 +185,11 @@ async function run() {
     );
     app.get("/users/agent/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-    
+
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
-    
+
       const query = { email: email };
       const user = await userCollection.findOne(query);
       let isSeller = false;
@@ -226,39 +227,42 @@ async function run() {
       res.send(result);
     });
 
-
-
-    app.patch("/property/reject/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          status: "rejected",
-        },
-      };
-      const result = await propertyCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/property/reject/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: "rejected",
+          },
+        };
+        const result = await propertyCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
+    );
 
     app.get("/property/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
+      const query = { _id: new ObjectId(id) };
       const result = await propertyCollection.findOne(query);
       res.send(result);
-    })
+    });
 
-    app.delete('/property/:id', verifyToken, async (req, res) => {
+    app.delete("/property/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
+      const query = { _id: new ObjectId(id) };
       const result = await propertyCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
-    app.put('/property/:id', async (req, res) => {
+    app.put("/property/:id", async (req, res) => {
       const item = req.body;
       const id = req.params.id;
       //console.log(item,id)
-      const filter = { _id: new ObjectId(id) }
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
           title: item.title,
@@ -267,29 +271,28 @@ async function run() {
           first_price: item.first_price,
           image: item.image,
           name: item.name,
-          email: item.email
-          
-        }
-      }
-      const result = await propertyCollection.updateOne(filter, updatedDoc)
+          email: item.email,
+        },
+      };
+      const result = await propertyCollection.updateOne(filter, updatedDoc);
       res.send(result);
-    })
+    });
 
     //all review routes
     //get review
-    app.get("/reviews/:email",async(req,res)=>{
-      const email=req.params.email;
-      console.log(email)
-      const queary ={email:email};
-      const result =await reviewCollection.find(queary).toArray();
-        res.send(result);
-    })
-  // common route
+    app.get("/reviews/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const queary = { email: email };
+      const result = await reviewCollection.find(queary).toArray();
+      res.send(result);
+    });
+    // common route
     app.get("/get-reviews", async (req, res) => {
       //console.log("jgyfy")
-      const cursor =  reviewCollection.find();
+      const cursor = reviewCollection.find();
       const reviews = await cursor.toArray();
-     res.send(reviews);
+      res.send(reviews);
     });
 
     //post reviews
@@ -301,12 +304,45 @@ async function run() {
     });
 
     // delete reviews by user
-    app.delete('/delete-reviews/:id', verifyToken, async (req, res) => {
+    app.delete("/delete-reviews/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
+      const query = { _id: new ObjectId(id) };
       const result = await reviewCollection.deleteOne(query);
       res.send(result);
-    })
+    });
+    ///// All WishList Route
+    // Check if a property is already in the wishlist
+    app.get("/wishlists/check/:email/:propertyId", async (req, res) => {
+      const { email, propertyId } = req.params;
+      try {
+        const wishlistItem = await wishlistCollection.findOne({
+          email,
+          propertyId,
+        });
+        if (wishlistItem) {
+          res.json({ exists: true });
+        } else {
+          res.json({ exists: false });
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
+    app.post("/wishlists", async (req, res) => {
+      const wishlistsItem = req.body;
+      const result = await wishlistCollection.insertOne(wishlistsItem);
+      res.send(result);
+    });
+
+
+    app.get("/user-wishlists/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const queary = { email: email };
+      const result = await wishlistCollection.find(queary).toArray();
+      res.send(result);
+    });
 
     ///Logout
     app.post("/logout", async (req, res) => {
@@ -317,7 +353,6 @@ async function run() {
         .send({ success: true });
     });
 
-    
     // Send a ping to confirm a successful connection
     await client.db("admin").command({
       ping: 1,
