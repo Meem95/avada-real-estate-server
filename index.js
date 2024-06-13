@@ -253,15 +253,45 @@ async function run() {
       const result = await propertyCollection.deleteOne(query);
       res.send(result);
     })
-    
+
+    app.put('/property/:id', async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      //console.log(item,id)
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          title: item.title,
+          location: item.location,
+          second_price: item.second_price,
+          first_price: item.first_price,
+          image: item.image,
+          name: item.name,
+          email: item.email
+          
+        }
+      }
+      const result = await propertyCollection.updateOne(filter, updatedDoc)
+      res.send(result);
+    })
 
     //all review routes
     //get review
-    app.get("/reviews", async (req, res) => {
-      const cursor = reviewCollection.find();
+    app.get("/reviews/:email",async(req,res)=>{
+      const email=req.params.email;
+      console.log(email)
+      const queary ={email:email};
+      const result =await reviewCollection.find(queary).toArray();
+        res.send(result);
+    })
+  // common route
+    app.get("/get-reviews", async (req, res) => {
+      //console.log("jgyfy")
+      const cursor =  reviewCollection.find();
       const reviews = await cursor.toArray();
-      res.send(reviews);
+     res.send(reviews);
     });
+
     //post reviews
     app.post("/reviews", async (req, res) => {
       const newReviews = req.body;
@@ -269,6 +299,14 @@ async function run() {
       const result = await reviewCollection.insertOne(newReviews);
       res.send(result);
     });
+
+    // delete reviews by user
+    app.delete('/delete-reviews/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await reviewCollection.deleteOne(query);
+      res.send(result);
+    })
 
     ///Logout
     app.post("/logout", async (req, res) => {
@@ -279,72 +317,7 @@ async function run() {
         .send({ success: true });
     });
 
-    // app.get("/users", async (req, res) => {
-    //   const cursor = userCollection.find();
-    //   const users = await cursor.toArray();
-    //   res.send(users);
-    // });
-    // app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-    //   const result = await userCollection.find().toArray();
-    //   res.send(result);
-    // });
-
-    // //admin route
-    // app.get('/users/admin/:email', verifyToken, async (req, res) => {
-    //   const email = req.params.email;
-
-    //   if (email !== req.decoded.email) {
-    //     return res.status(403).send({ message: 'forbidden access' })
-    //   }
-
-    //   const query = { email: email };
-    //   const user = await userCollection.findOne(query);
-    //   let admin = false;
-    //   if (user) {
-    //     admin = user?.role === 'admin';
-    //   }
-    //   res.send({ admin });
-    // })
-
-    // app.post('/users', async (req, res) => {
-    //   const user = req.body;
-    //   // insert email if user doesnt exists:
-    //   // you can do this many ways (1. email unique, 2. upsert 3. simple checking)
-    //   const query = { email: user.email }
-    //   const existingUser = await userCollection.findOne(query);
-    //   if (existingUser) {
-    //     return res.send({ message: 'user already exists', insertedId: null })
-    //   }
-    //   const result = await userCollection.insertOne(user);
-    //   res.send(result);
-    // });
-
-    // app.patch("/user", async (req, res) => {
-    //   const user = req.body;
-    //   const filter = {
-    //     email: user.email,
-    //   };
-    //   const updateDoc = {
-    //     $set: {
-    //       lastLoggedAt: user.lastLoggedAt,
-    //     },
-    //   };
-    //   const result = await userCollection.updateOne(filter, updateDoc);
-    //   res.send(result);
-    // });
-
-    // app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
-    //   const id = req.params.id;
-    //   const filter = { _id: new ObjectId(id) };
-    //   const updatedDoc = {
-    //     $set: {
-    //       role: 'admin'
-    //     }
-    //   }
-    //   const result = await userCollection.updateOne(filter, updatedDoc);
-    //   res.send(result);
-    // })
-
+    
     // Send a ping to confirm a successful connection
     await client.db("admin").command({
       ping: 1,
