@@ -343,7 +343,14 @@ async function run() {
       const result = await wishlistCollection.find(queary).toArray();
       res.send(result);
     });
-
+    // delete wishlist from user
+    app.delete("/delete-wishlists/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.deleteOne(query);
+      res.send(result);
+    });
+    
     ///Logout
     app.post("/logout", async (req, res) => {
       const user = req.body;
