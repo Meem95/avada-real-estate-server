@@ -51,6 +51,7 @@ async function run() {
     const propertyCollection = client.db("real-estate").collection("property");
     const reviewCollection = client.db("real-estate").collection("reviews");
     const wishlistCollection = client.db("real-estate").collection("wishlists");
+    const sellCollection = client.db("real-estate").collection("sells");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -64,7 +65,8 @@ async function run() {
     // middlewares
     // middlewares
     const verifyToken = (req, res, next) => {
-      // console.log('inside verify token', req.headers.authorization);
+       console.log('inside verify token', req.headers);
+     
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "unauthorized access" });
       }
@@ -208,9 +210,9 @@ async function run() {
       res.send(property);
     });
     //post property
-    app.post("/property", async (req, res) => {
+    app.post("/property",verifyToken, async (req, res) => {
       const newProperty = req.body;
-      console.log(newProperty);
+      //console.log(newProperty);
       const result = await propertyCollection.insertOne(newProperty);
       res.send(result);
     });
@@ -243,7 +245,17 @@ async function run() {
         res.send(result);
       }
     );
-
+    app.patch("/advertise-property/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          type: "advertise",
+        },
+      };
+      const result = await propertyCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
     app.get("/property/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -270,11 +282,21 @@ async function run() {
           second_price: item.second_price,
           first_price: item.first_price,
           image: item.image,
-          name: item.name,
-          email: item.email,
+          description: item.description,
+          agentName: item.agentName, 
+          agentEmail: item.agentEmail, 
+          agentImage: item.agentImage,
         },
       };
       const result = await propertyCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.get("/offer-property/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.findOne(query);
+      //console.log(id)
       res.send(result);
     });
 
@@ -336,13 +358,14 @@ async function run() {
     });
 
 
-    app.get("/user-wishlists/:email", async (req, res) => {
+    app.get("/user-wishlists/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       console.log(email);
       const queary = { email: email };
       const result = await wishlistCollection.find(queary).toArray();
       res.send(result);
     });
+
     // delete wishlist from user
     app.delete("/delete-wishlists/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
@@ -350,7 +373,53 @@ async function run() {
       const result = await wishlistCollection.deleteOne(query);
       res.send(result);
     });
-    
+
+    /// All selling routes
+      //sell post 
+      app.post("/sells", async (req, res) => {
+        const newSells = req.body;
+        const result = await sellCollection.insertOne(newSells);
+        res.send(result);
+      })
+
+    // get post
+    app.get("/get-sells/:email", async (req, res) => {
+  const email = req.params.email;
+  console.log(email)
+  const query = { agentEmail: email };
+  console.log(email);
+
+  try {
+    const result = await sellCollection.find(query).toArray();
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error fetching data");
+  }
+});
+
+app.patch("/accept-property-request/:id", verifyToken, async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) };
+  const updatedDoc = {
+    $set: {
+      status: "accepted",
+    },
+  };
+  const result = await sellCollection.updateOne(filter, updatedDoc);
+  res.send(result);
+});
+app.patch("/reject-property-request/:id", verifyToken, async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) };
+  const updatedDoc = {
+    $set: {
+      status: "rejected",
+    },
+  };
+  const result = await sellCollection.updateOne(filter, updatedDoc);
+  res.send(result);
+});
     ///Logout
     app.post("/logout", async (req, res) => {
       const user = req.body;
