@@ -5,27 +5,28 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
+ const stripe = require('stripe')(process.env.STRIPE_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      // 'https://h-food-396f7.web.app',
-      //'https://h-food-396f7.firebaseapp.com'
-    ],
-    credentials: true,
-  })
-);
-app.use(cookieParser());
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",
+//       // 'https://h-food-396f7.web.app',
+//       //'https://h-food-396f7.firebaseapp.com'
+//     ],
+//     credentials: true,
+//   })
+// );
+app.use(cors());
+// app.use(cookieParser());
 app.use(express.json());
 
-console.log(process.env.DB_USER);
-console.log(process.env.DB_PASS);
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.52gi70p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-console.log(uri);
+
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -52,6 +53,7 @@ async function run() {
     const reviewCollection = client.db("real-estate").collection("reviews");
     const wishlistCollection = client.db("real-estate").collection("wishlists");
     const sellCollection = client.db("real-estate").collection("sells");
+    const paymentCollection = client.db("real-estate").collection("payments");
 
     // jwt related api
     app.post("/jwt", async (req, res) => {
@@ -65,8 +67,8 @@ async function run() {
     // middlewares
     // middlewares
     const verifyToken = (req, res, next) => {
-       console.log('inside verify token', req.headers);
-     
+     // console.log("inside verify token", req.headers);
+
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "unauthorized access" });
       }
@@ -210,7 +212,7 @@ async function run() {
       res.send(property);
     });
     //post property
-    app.post("/property",verifyToken, async (req, res) => {
+    app.post("/property", verifyToken, async (req, res) => {
       const newProperty = req.body;
       //console.log(newProperty);
       const result = await propertyCollection.insertOne(newProperty);
@@ -283,8 +285,8 @@ async function run() {
           first_price: item.first_price,
           image: item.image,
           description: item.description,
-          agentName: item.agentName, 
-          agentEmail: item.agentEmail, 
+          agentName: item.agentName,
+          agentEmail: item.agentEmail,
           agentImage: item.agentImage,
         },
       };
@@ -304,9 +306,9 @@ async function run() {
     //get review
     app.get("/reviews/:email", async (req, res) => {
       const email = req.params.email;
-      console.log(email);
-      const queary = { email: email };
-      const result = await reviewCollection.find(queary).toArray();
+     // console.log(email);
+      const query = { email: email };
+      const result = await reviewCollection.find(query).toArray();
       res.send(result);
     });
     // common route
@@ -320,7 +322,7 @@ async function run() {
     //post reviews
     app.post("/reviews", async (req, res) => {
       const newReviews = req.body;
-      console.log(newReviews);
+      //console.log(newReviews);
       const result = await reviewCollection.insertOne(newReviews);
       res.send(result);
     });
@@ -332,6 +334,17 @@ async function run() {
       const result = await reviewCollection.deleteOne(query);
       res.send(result);
     });
+
+    app.get("/reviews-property/:propertyId", async (req, res) => {
+      const propertyId = req.params.propertyId;
+
+      const query = { propertyId: propertyId };
+      //const query = { propertyId: new ObjectId(propertyId) };
+      const result = await reviewCollection.find(query).toArray();
+      //console.log("Fetched reviews:", result);
+      res.json(result);
+    });
+
     ///// All WishList Route
     // Check if a property is already in the wishlist
     app.get("/wishlists/check/:email/:propertyId", async (req, res) => {
@@ -356,13 +369,23 @@ async function run() {
       const result = await wishlistCollection.insertOne(wishlistsItem);
       res.send(result);
     });
-
+    app.patch("/get-offer-price/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          offer_price: "got",
+        },
+      };
+      const result = await wishlistCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
     app.get("/user-wishlists/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      console.log(email);
-      const queary = { email: email };
-      const result = await wishlistCollection.find(queary).toArray();
+     // console.log(email);
+      const query = { email: email };
+      const result = await wishlistCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -374,56 +397,114 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/user-boughtProperty/:email", async (req, res) => {
+      const email = req.params.email;
+      //console.log(email);
+      const query = { email: email };
+      const result = await sellCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/agent-boughtProperty/:email", async (req, res) => {
+      const email = req.params.email;
+      //console.log(email);
+      const query = { agentEmail: email };
+      const result = await sellCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/user-boughtProperty-payment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await sellCollection.find(query).toArray();
+      res.send(result);
+    });
+
     /// All selling routes
-      //sell post 
-      app.post("/sells", async (req, res) => {
-        const newSells = req.body;
-        const result = await sellCollection.insertOne(newSells);
-        res.send(result);
-      })
+    //sell post
+    app.post("/sells", async (req, res) => {
+      const newSells = req.body;
+      const result = await sellCollection.insertOne(newSells);
+      res.send(result);
+    });
 
     // get post
     app.get("/get-sells/:email", async (req, res) => {
-  const email = req.params.email;
-  console.log(email)
-  const query = { agentEmail: email };
-  console.log(email);
+      const email = req.params.email;
+      //console.log(email);
+      const query = { agentEmail: email };
+      try {
+        const result = await sellCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("Error fetching data");
+      }
+    });
 
-  try {
-    const result = await sellCollection.find(query).toArray();
-    res.send(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Error fetching data");
-  }
-});
+    app.patch("/accept-property-request/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: "accepted",
+        },
+      };
+      const result = await sellCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+    app.patch("/reject-property-request/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: "rejected",
+        },
+      };
+      const result = await sellCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+    app.patch("/update-offer-status/:id", verifyToken, async (req, res) => {
+      const item = req.body;
+      console.log("item" , item)
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status : "bought", 
+          transctionId : item.transactionId
+        },
+      };
+      const result = await sellCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
-app.patch("/accept-property-request/:id", verifyToken, async (req, res) => {
-  const id = req.params.id;
-  const filter = { _id: new ObjectId(id) };
-  const updatedDoc = {
-    $set: {
-      status: "accepted",
-    },
-  };
-  const result = await sellCollection.updateOne(filter, updatedDoc);
-  res.send(result);
-});
-app.patch("/reject-property-request/:id", verifyToken, async (req, res) => {
-  const id = req.params.id;
-  const filter = { _id: new ObjectId(id) };
-  const updatedDoc = {
-    $set: {
-      status: "rejected",
-    },
-  };
-  const result = await sellCollection.updateOne(filter, updatedDoc);
-  res.send(result);
-});
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    // payment store
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+
+      //  carefully delete each item from the cart
+      console.log('payment info', payment);
+      res.send({ paymentResult });
+    })
+
+
     ///Logout
     app.post("/logout", async (req, res) => {
       const user = req.body;
-      console.log("logging out", user);
+     // console.log("logging out", user);
       res
         .clearCookie("token", { ...cookieOptions, maxAge: 0 })
         .send({ success: true });
