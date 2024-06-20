@@ -205,6 +205,18 @@ async function run() {
 
     //all property routes
     //get property
+    app.get("/get-agent-property/:email", async (req, res) => {
+      const email = req.params.email;
+      //console.log(email);
+      const query = { agentEmail: email };
+      try {
+        const result = await propertyCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("Error fetching data");
+      }
+    });
 
     app.get("/property", async (req, res) => {
       const cursor = propertyCollection.find();
@@ -269,7 +281,7 @@ async function run() {
         },
       };
       const result = await propertyCollection.updateOne(filter, updatedDoc);
-      console.log("all console log",result)
+     // console.log("all console log",result)
       res.send(result);
     });
     app.get("/property/:id", async (req, res) => {
@@ -334,7 +346,7 @@ async function run() {
     });
 
     //post reviews
-    app.post("/reviews", async (req, res) => {
+    app.post("/reviews", verifyToken,async (req, res) => {
       const newReviews = req.body;
       //console.log(newReviews);
       const result = await reviewCollection.insertOne(newReviews);
@@ -378,7 +390,7 @@ async function run() {
       }
     });
 
-    app.post("/wishlists", async (req, res) => {
+    app.post("/wishlists",verifyToken, async (req, res) => {
       const wishlistsItem = req.body;
       const result = await wishlistCollection.insertOne(wishlistsItem);
       res.send(result);
@@ -434,7 +446,7 @@ async function run() {
 
     /// All selling routes
     //sell post
-    app.post("/sells", async (req, res) => {
+    app.post("/sells",verifyToken, async (req, res) => {
       const newSells = req.body;
       const result = await sellCollection.insertOne(newSells);
       res.send(result);
@@ -491,7 +503,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
 
@@ -505,7 +517,7 @@ async function run() {
       });
     });
     // payment store
-    app.post('/payments', async (req, res) => {
+    app.post('/payments',verifyToken, async (req, res) => {
       const payment = req.body;
       const paymentResult = await paymentCollection.insertOne(payment);
 
@@ -516,13 +528,13 @@ async function run() {
 
 
     ///Logout
-    app.post("/logout", async (req, res) => {
-      const user = req.body;
-     // console.log("logging out", user);
-      res
-        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
-        .send({ success: true });
-    });
+    // app.post("/logout", async (req, res) => {
+    //   const user = req.body;
+    //  // console.log("logging out", user);
+    //   res
+    //     .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+    //     .send({ success: true });
+    // });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({
